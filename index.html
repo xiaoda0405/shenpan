@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>小妲的审判小游戏</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #080606;
+      font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+      color: #f0e6d0;
+    }
+
+    /* ========== 通用屏幕 ========== */
+    .screen {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+      z-index: 1;
+    }
+
+    .screen.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+
+    /* ========== 开始界面 ========== */
+    #start-screen {
+      cursor: pointer;
+      background: #000;
+    }
+
+    #start-screen video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 20%;
+    }
+
+    .start-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0.55) 0%,
+        rgba(0, 0, 0, 0.15) 35%,
+        rgba(0, 0, 0, 0.25) 65%,
+        rgba(0, 0, 0, 0.75) 100%
+      );
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 12vh;
+      pointer-events: none;
+    }
+
+    .game-title {
+      font-size: clamp(28px, 7vw, 42px);
+      font-weight: 700;
+      color: #f0c040;
+      text-shadow:
+        0 0 20px rgba(201, 162, 39, 0.7),
+        0 0 40px rgba(196, 30, 58, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.8);
+      letter-spacing: 4px;
+      margin-bottom: 18px;
+      text-align: center;
+      animation: titlePulse 3s ease-in-out infinite;
+    }
+
+    @keyframes titlePulse {
+      0%, 100% { text-shadow: 0 0 20px rgba(201, 162, 39, 0.7), 0 0 40px rgba(196, 30, 58, 0.4), 0 2px 4px rgba(0,0,0,0.8); }
+      50% { text-shadow: 0 0 28px rgba(240, 192, 64, 0.9), 0 0 55px rgba(196, 30, 58, 0.55), 0 2px 4px rgba(0,0,0,0.8); }
+    }
+
+    .start-hint {
+      font-size: clamp(14px, 3.5vw, 18px);
+      color: #e8d090;
+      opacity: 0.85;
+      letter-spacing: 2px;
+      animation: hintBlink 2s ease-in-out infinite;
+    }
+
+    @keyframes hintBlink {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 0.35; }
+    }
+
+    .start-hint::before {
+      content: '▼ ';
+      font-size: 0.8em;
+    }
+
+    /* ========== 主游戏界面 ========== */
+    #main-screen {
+      background: #080606;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .char-area {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: #0a0606;
+    }
+
+    .char-area video,
+    .char-area img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 15%;
+    }
+
+    .char-area .idle-img {
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 2;
+    }
+
+    .char-area.idle .idle-img {
+      opacity: 1;
+    }
+
+    .char-area.idle video {
+      opacity: 0;
+    }
+
+    /* 顶部栏 */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: linear-gradient(180deg,
+        rgba(28, 12, 12, 0.92) 0%,
+        rgba(16, 6, 6, 0.85) 100%
+      );
+      border-bottom: 1px solid rgba(100, 30, 30, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 20;
+      backdrop-filter: blur(6px);
+    }
+
+    .top-bar .title-mini {
+      font-size: 14px;
+      color: #c9a227;
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    .lang-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .lang-btn {
+      min-width: 48px;
+      height: 28px;
+      padding: 0 10px;
+      background: linear-gradient(180deg, #1f1810 0%, #120e08 100%);
+      border: 1px solid #c9a227;
+      border-radius: 3px;
+      color: #e8d090;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn:hover,
+    .lang-btn.active {
+      background: linear-gradient(180deg, #2e2414 0%, #1c160c 100%);
+      border-color: #f0c040;
+      color: #ffe9a0;
+      box-shadow: 0 0 10px rgba(201, 162, 39, 0.4);
+    }
+
+    /* 底部对话 / 操作区 */
+    .bottom-panel {
+      position: relative;
+      background: linear-gradient(160deg,
+        rgba(32, 12, 12, 0.97) 0%,
+        rgba(14, 5, 5, 0.99) 100%
+      );
+      border-top: 1px solid rgba(110, 30, 30, 0.45);
+      padding: 16px 18px 20px;
+      z-index: 20;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 16px;
+      margin-bottom: 12px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        #8b1a1a 20%,
+        #c41e3a 50%,
+        #8b1a1a 80%,
+        transparent 100%
+      );
+      box-shadow: 0 0 6px rgba(196, 30, 58, 0.45);
+    }
+
+    .divider-diamond {
+      width: 10px;
+      height: 10px;
+      margin: 0 6px;
+      background: linear-gradient(135deg, #e8c040, #c9a227);
+      transform: rotate(45deg);
+      box-shadow: 0 0 8px rgba(201, 162, 39, 0.6);
+      border: 1px solid #f5d060;
+    }
+
+    .dialogue-box {
+      min-height: 72px;
+      margin-bottom: 14px;
+    }
+
+    .dialogue-quote {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #e05070;
+      text-shadow: 0 0 10px rgba(224, 80, 112, 0.35);
+      margin-bottom: 6px;
+    }
+
+    .dialogue-name {
+      font-size: 13px;
+      color: #e8c040;
+      font-weight: 500;
+      text-shadow: 0 0 8px rgba(232, 192, 64, 0.3);
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .game-btn {
+      flex: 1;
+      min-width: 100px;
+      height: 40px;
+      padding: 0 16px;
+      background: linear-gradient(180deg, #1f1810 0%, #120e08 100%);
+      border: 1px solid #c9a227;
+      border-radius: 4px;
+      color: #e8d090;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow:
+        0 0 0 1px rgba(201, 162, 39, 0.12),
+        inset 0 1px 0 rgba(255, 220, 120, 0.06);
+    }
+
+    .game-btn:hover,
+    .game-btn:active {
+      background: linear-gradient(180deg, #2e2414 0%, #1c160c 100%);
+      border-color: #f0c040;
+      color: #ffe9a0;
+      box-shadow:
+        0 0 14px rgba(201, 162, 39, 0.45),
+        0 0 0 1px rgba(240, 192, 64, 0.25);
+    }
+
+    .game-btn.danger {
+      border-color: #a03030;
+      color: #e09090;
+    }
+
+    .game-btn.danger:hover {
+      border-color: #c41e3a;
+      color: #ffb0b0;
+      box-shadow: 0 0 14px rgba(196, 30, 58, 0.4);
+    }
+
+    /* 状态切换提示（调试用，可隐藏） */
+    .state-toggle {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 30;
+      font-size: 11px;
+      color: #706050;
+      background: rgba(0,0,0,0.5);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid rgba(100,60,40,0.4);
+    }
+
+    .state-toggle:hover {
+      color: #c9a227;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== 开始界面 ========== -->
+  <div id="start-screen" class="screen active">
+    <video
+      id="cover-video"
+      src="https://files.catbox.moe/fg7w4o.mp4"
+      autoplay
+      muted
+      loop
+      playsinline
+      webkit-playsinline
+    ></video>
+    <!-- 本地备用：src="cover.mp4" -->
+    <div class="start-overlay">
+      <h1 class="game-title">小妲的审判小游戏</h1>
+      <p class="start-hint">点击画面开始</p>
+    </div>
+  </div>
+
+  <!-- ========== 主游戏界面 ========== -->
+  <div id="main-screen" class="screen">
+    <div class="char-area" id="char-area">
+      <!-- 讲话动画：循环播放视频 -->
+      <video
+        id="talk-video"
+        src="main.mp4"
+        muted
+        loop
+        playsinline
+        webkit-playsinline
+      ></video>
+      <!-- 闭嘴 / 待机：静态帧 -->
+      <img class="idle-img" id="idle-img" src="main-idle.jpg" alt="">
+
+      <!-- 顶部栏 -->
+      <div class="top-bar">
+        <span class="title-mini">小妲的审判</span>
+        <div class="lang-btns">
+          <button class="lang-btn active">中文</button>
+          <button class="lang-btn">EN</button>
+        </div>
+      </div>
+
+      <!-- 状态切换（方便预览，正式可删） -->
+      <div class="state-toggle" id="state-toggle">切换：讲话 / 闭嘴</div>
+    </div>
+
+    <div class="bottom-panel">
+      <div class="divider">
+        <div class="divider-diamond"></div>
+      </div>
+
+      <div class="dialogue-box">
+        <div class="dialogue-quote" id="dialogue-text">「终于来了，我的苦工预备役。」</div>
+        <div class="dialogue-name">小妲大人</div>
+      </div>
+
+      <div class="action-btns">
+        <button class="game-btn" id="btn-talk">继续听训</button>
+        <button class="game-btn" id="btn-idle">低头认错</button>
+        <button class="game-btn danger" id="btn-pay">上贡求饶</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const startScreen = document.getElementById('start-screen');
+    // 预览时直接初始化主界面讲话状态
+    if (mainScreen.classList.contains("active")) {
+      setTimeout(() => setTalking(true), 300);
+    }
+    const mainScreen  = document.getElementById('main-screen');
+    const coverVideo  = document.getElementById('cover-video');
+    const talkVideo   = document.getElementById('talk-video');
+    const charArea    = document.getElementById('char-area');
+    const stateToggle = document.getElementById('state-toggle');
+    const dialogueText = document.getElementById('dialogue-text');
+
+    // 确保封面视频循环播放（防止部分浏览器策略）
+    coverVideo.play().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && startScreen.classList.contains('active')) {
+        coverVideo.play().catch(() => {});
+      }
+    });
+
+    // 点击开始界面 → 进入主界面
+    startScreen.addEventListener('click', () => {
+      startScreen.classList.remove('active');
+      mainScreen.classList.add('active');
+
+      // 进入后默认进入「讲话」状态
+      setTalking(true);
+    });
+
+    // 讲话 / 闭嘴 状态控制
+    let isTalking = true;
+
+    function setTalking(talk) {
+      isTalking = talk;
+      if (talk) {
+        charArea.classList.remove('idle');
+        talkVideo.currentTime = 0;
+        talkVideo.play().catch(() => {});
+        stateToggle.textContent = '当前：讲话中（点此切换闭嘴）';
+      } else {
+        charArea.classList.add('idle');
+        talkVideo.pause();
+        stateToggle.textContent = '当前：闭嘴中（点此切换讲话）';
+      }
+    }
+
+    // 点击右下角切换状态（预览用）
+    stateToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setTalking(!isTalking);
+    });
+
+    // 按钮简单演示对话切换
+    const lines = [
+      { text: '「终于来了，我的苦工预备役。」', talk: true },
+      { text: '「今天又想用什么借口逃过审判？」', talk: true },
+      { text: '「……抬头看着我。」', talk: true },
+      { text: '「跪下。」', talk: true },
+      { text: '（小妲冷冷地盯着你，一言不发）', talk: false },
+    ];
+    let lineIndex = 0;
+
+    document.getElementById('btn-talk').addEventListener('click', () => {
+      lineIndex = (lineIndex + 1) % lines.length;
+      dialogueText.textContent = lines[lineIndex].text;
+      setTalking(lines[lineIndex].talk);
+    });
+
+    document.getElementById('btn-idle').addEventListener('click', () => {
+      dialogueText.textContent = '（你低下了头，不敢直视她的眼睛）';
+      setTalking(false);
+    });
+
+    document.getElementById('btn-pay').addEventListener('click', () => {
+      dialogueText.textContent = '「哼，知道求饶就好。拿上贡来。」';
+      setTalking(true);
+    });
+
+    // 若直接进入主界面则初始化
+    if (mainScreen.classList.contains("active")) {
+      setTimeout(() => setTalking(true), 200);
+    }
+
+    // 语言按钮
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
